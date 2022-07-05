@@ -1,0 +1,10 @@
+{
+	"server_ip": "127.0.0.1",
+	"server_port": 8000,
+	"camera_name": "Laptop",
+	"source": "rtsp://hack:hack@10.0.0.101:554/av_stream/ch1",
+	"picamera": false,
+	"camera_warmup_time": 2.5,
+	"resolution": [640, 480],
+	"framerate": 30
+}
