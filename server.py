@@ -7,6 +7,7 @@ import cv2
 import threading
 import time
 import importlib
+import ssd
 from datetime import datetime
 
 # initialize the list of class labels MobileNet SSD was trained to
@@ -15,7 +16,7 @@ CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
     "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
     "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
     "sofa", "train", "tvmonitor"]
-CONSIDER = set(["dog", "person", "car"])
+CONSIDER = set(["person", "car"])
 COLORS = numpy.random.uniform(0, 255, size=(len(CLASSES), 3))
 
 config = None
@@ -118,9 +119,11 @@ class FrameServer(object):
         self._actors = []
         self.shutdown = False
 
-    def set_frame(self, camera_name, frame):
+    def set_frame(self, camera_name, fps, frame, movement):
         for actor in self._actors:
-            actor.set_frame(camera_name, frame)
+            if not movement and actor.movement_only:
+                continue
+            actor.set_frame(camera_name, fps, frame)
         
     def run(self):
         for detail in config["actors"]:
@@ -147,13 +150,13 @@ class FrameServer(object):
                             self.empty_frame = cv2.resize(cv2.imread("./nopicture.png"), (w, h), cv2.INTER_AREA)
                         frame, movement = self.analyze(frame)
                         if not camera_source.render(frame, movement) is None:
-                            self.set_frame(camera_name, frame)
+                            self.set_frame(camera_name, camdetail["fps"], frame, movement)
                 if (datetime.now() - self.lastActiveCheck).seconds > config["active_check_seconds"]:
                     for camera_source in list(self.camera_sources.values()):
                         if not camera_source.active:
                             print("Unregistering camera %s" % camera_source.camera_name)
                             self.camera_sources.pop(camera_source.camera_name)
-                            self.set_frame(camera_source.camera_name, self.empty_frame) 
+                            self.set_frame(camera_source.camera_name, 0, self.empty_frame) 
                     self.lastActiveCheck = datetime.now()                        
             except (KeyboardInterrupt, SystemExit):
                 self.shutdown = True
@@ -168,7 +171,8 @@ class FrameServer(object):
         movement = False
         # grab the frame dimensions and construct a blob
         (h, w) = frame.shape[:2]
-        blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 0.007843, (300, 300), 127.5)    
+        resized = cv2.resize(frame, (300, 300), cv2.INTER_AREA)
+        blob = cv2.dnn.blobFromImage(resized, 0.007843, (300, 300), 127.5)    
         # pass the blob through the network and obtain the detections and predictions
         self.net.setInput(blob)
         detections = self.net.forward()

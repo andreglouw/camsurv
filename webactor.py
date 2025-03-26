@@ -8,7 +8,8 @@ def index():
 
 class WebActor(FrameActor):
         
-    def init(self):
+    def init(self, **kwargs):
+        super().init(**kwargs)
         self.app = Flask(__name__)
         self.app.add_url_rule('/', 'index', index)
         self.app.add_url_rule('/video_feed', 'video_feed', self.video_feed)

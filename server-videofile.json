@@ -1,0 +1,52 @@
+{
+	"server_port": 8000,
+	"show_video": true,
+	"start_free": false,
+	"delta_thresh": 25,
+	"weighting_alpha": 0.05,
+	"movement_sensitivity": 10,
+	"min_motion_frames": 1,
+	"active_check_seconds": 30,
+	"record_new_seconds": 5,
+	"record_update_seconds": 2,
+	"prototxt": "MobileNetSSD_deploy.prototxt",
+	"model": "MobileNetSSD_deploy.caffemodel",
+	"confidence": 0.5,
+	"actors":[
+		{
+			"class_name": "frameactor.LocalViewer",
+			"args":{
+				"movement_only": "False",
+				"resolution": [640, 480]
+			}
+		},
+		{
+			"class_name": "frameactor.VideoFile",
+			"args": {
+				"movement_only": "False",
+				"resolution": [640, 480]
+			}					
+		},
+		{
+			"class_name": "webactor.WebActor",
+			"args": {
+				"movement_only": "False",
+				"resolution": [640, 480]
+			}					
+		}
+	],
+	"cameras":[
+		{
+			"camera_name": "Laptop",
+			"calibrate_fps": 5.0
+		},
+		{
+			"camera_name": "Driveway",
+			"calibrate_fps": 25.0
+		},
+		{
+			"camera_name": "Raspberry",
+			"frame_calibrate": 100
+		}
+	]
+}

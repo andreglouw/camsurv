@@ -13,17 +13,18 @@ class FrameActor(threading.Thread):
         self.frame_available = False
         self._frame = None
         self.conf = conf
-        self.fps = None
         self.avg = None
         self._shutdown = False
         self.init(**kwargs)
         
-    def init(self):
-        raise RuntimeError('Must be implemented by subclasses.')
+    def init(self, **kwargs):
+        self.movement_only = (kwargs["movement_only"] == "True")
+        self.resolution = kwargs["resolution"]
+        print("{} will render for movement only: {}".format(self, kwargs["movement_only"]))
     
-    def set_frame(self, camera_name, frame):
+    def set_frame(self, camera_name, fps, frame):
         self.event.acquire()
-        self._frame = (camera_name, frame)
+        self._frame = (camera_name, fps, frame)
         self.frame_available = True
         self.event.notifyAll()
         self.event.release()
@@ -43,18 +44,18 @@ class FrameActor(threading.Thread):
     
     def frames(self, detail=True):
         while not self._shutdown:
-            (camera_name, frame) =  self.get_frame()
+            (camera_name, fps, frame) =  self.get_frame()
             frame = self.frameToYield(frame)
             if not frame is None:
                 if detail:
-                    yield (camera_name, frame)
+                    yield (camera_name, fps, frame)
                 else:
                     yield frame
             
     def run(self):
         print("Starting actor %s" % type(self).__name__)
-        for (camera_name, frame) in self.frames():
-            self.handle(camera_name, frame)
+        for (camera_name, fps, frame) in self.frames():
+            self.handle(camera_name, fps, frame)
 
     def shutdown(self):
         print("Actor %s shutting down" % type(self).__name__)
@@ -62,31 +63,37 @@ class FrameActor(threading.Thread):
         
 class LocalViewer(FrameActor):
             
-    def init(self):
+    def init(self, **kwargs):
+        super().init(**kwargs)
         self.first = True
 
-    def handle(self, camera_name, frame):
+    def handle(self, camera_name, fps, frame):
+        if self.first:
+            (h, w) = frame.shape[:2]
+            print(f"Frame shape: {h} x {w}")
+            self.first = False
         cv2.imshow(camera_name, frame)
         cv2.waitKey(1)
     
 class VideoFile(FrameActor):
     
-    def init(self, seconds_per_frame):
+    def init(self, **kwargs):
+        super().init(**kwargs)
         self.cameraFiles = {}
-        self.fps = 1.0 / float(seconds_per_frame)
         
-    def handle(self, camera_name, frame):
+    def handle(self, camera_name, fps, frame):
         if not camera_name in self.cameraFiles:
-            file_name = "./%s.avi" % camera_name
+            file_name = "./%s.mp4" % camera_name
             if os.path.exists(file_name):
                 name, ext = os.path.splitext(file_name)
                 now = datetime.today()
                 timestamp = now.strftime("%Y%m%d_%H%M%S")
                 os.rename(file_name, "%s_%s%s" % (name, timestamp, ext))
-            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             (h, w) = frame.shape[:2]
-            print("VideoFile capture @ %.1f fps: %d x %d" % (self.fps, w, h))
-            video = cv2.VideoWriter(file_name, fourcc, self.fps, (w, h))
+            print("VideoFile capture @ %.1f fps: %d x %d" % (fps, w, h))
+            (rw, rh) = self.resolution
+            video = cv2.VideoWriter(file_name, fourcc, fps, (rw, rh))
             self.cameraFiles[camera_name] = video
         else:
             video = self.cameraFiles[camera_name]
